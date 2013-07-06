@@ -48,10 +48,29 @@ class WSGIApplication(webapp2.WSGIApplication):
         super(WSGIApplication, self).__init__(routes, debug, config)
 
 
-def view(f, method=None):
-    if method is None:
-        method = 'get'
-    def handler_method(self):
-        self.response.write(f(self))
-    namespace = {method: handler_method}
-    return type('ViewHandler', (RequestHandler,), namespace)
+def view(f, handler_class=None, accept_method=None):
+    """Request handler factory.
+
+    It returns a response with the body set to the value returned by
+    the decorated function.
+
+    :param f: Decorated/wrapped function. This function must accept
+    a parameter that is a reference to the request handler object.
+
+    :param accept_method: Accepted request method. Default is ``get``.
+    You can also pass a tuple with all the accepted methods.
+
+    :return: :class:`RequestHandler` object.
+    """
+    if accept_method is None:
+        accept_method = ('get',)
+    if handler_class is None:
+        handler_class = RequestHandler
+    def handler_method(self, *args, **kwargs):
+        result = f(self, *args, **kwargs)
+        if result:
+            self.response.write(result)
+    namespace = {}
+    for method in accept_method:
+        namespace[method] = handler_method
+    return type('ViewHandler', (handler_class,), namespace)
